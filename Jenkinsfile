@@ -36,7 +36,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 echo "Cloning terra-workspace branch..."
-                git branch: 'terra-workspace',
+                git branch: 'main',
                     url: 'https://github.com/Nagendrappa/Jenkins_multienv_project.git'
             }
         }
