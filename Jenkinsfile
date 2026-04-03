@@ -101,7 +101,7 @@ pipeline {
                     if (params.ACTION == 'apply') {
 
                         sh """
-                        terraform apply -auto-approve -var-file="${params.ENV}.tfvars -no-color"
+                        terraform apply -auto-approve -var-file="${params.ENV}.tfvars" -no-color
                         """
 
                     } else if (params.ACTION == 'destroy') {
@@ -110,7 +110,7 @@ pipeline {
                          input message: " Confirm DESTROY for ${params.ENV}?"
 
                         sh """
-                        terraform destroy -auto-approve -var-file="${params.ENV}.tfvars no-color"
+                        terraform destroy -auto-approve -var-file="${params.ENV}.tfvars" -no-color
                         """
                     }
                 }
