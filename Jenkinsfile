@@ -20,7 +20,7 @@ pipeline {
     }
 
     environment {
-        AWS_DEFAULT_REGION = 'us-east-1'  // ardcoded region (no parameters)
+        AWS_DEFAULT_REGION = 'us-east-1'
         SECRET_NAME = 'terraform_user_access_key'
         TF_IN_AUTOMATION = "true"
     }
@@ -29,13 +29,13 @@ pipeline {
 
         stage('Clean Workspace') {
             steps {
-                deleteDir()
+                cleanWs()   // safer than deleteDir()
             }
         }
 
         stage('Checkout Code') {
             steps {
-                echo "Cloning terra-workspace branch..."
+                echo "Cloning repository..."
                 git branch: 'main',
                     url: 'https://github.com/Nagendrappa/Jenkins_multienv_project.git'
             }
@@ -69,7 +69,7 @@ pipeline {
             steps {
                 sh '''
                 echo "Initializing Terraform..."
-                terraform init
+                terraform init -input=false
                 '''
             }
         }
@@ -78,9 +78,23 @@ pipeline {
             steps {
                 sh """
                 echo "Selecting workspace: ${params.ENV}"
-                terraform workspace select ${params.ENV} || terraform workspace new ${params.ENV}
+
+                terraform workspace select ${params.ENV} \
+                || terraform workspace new ${params.ENV}
+
                 terraform workspace show
                 """
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                sh '''
+                echo "Running terraform fmt and validate..."
+
+                terraform fmt -check
+                terraform validate
+                '''
             }
         }
 
@@ -88,7 +102,10 @@ pipeline {
             steps {
                 sh """
                 echo "Running plan for ${params.ENV}"
-                terraform plan -var-file="${params.ENV}.tfvars"
+
+                terraform plan \
+                -input=false \
+                -var-file="${params.ENV}.tfvars"
                 """
             }
         }
@@ -96,21 +113,29 @@ pipeline {
         stage('Terraform Action (Apply / Destroy)') {
             steps {
                 script {
+
                     echo "Action: ${params.ACTION}"
 
                     if (params.ACTION == 'apply') {
 
                         sh """
-                        terraform apply -auto-approve -var-file="${params.ENV}.tfvars" -no-color
+                        terraform apply \
+                        -auto-approve \
+                        -input=false \
+                        -var-file="${params.ENV}.tfvars"
                         """
 
-                    } else if (params.ACTION == 'destroy') {
+                    }
 
-                        // Safety confirmation
-                         input message: " Confirm DESTROY for ${params.ENV}?"
+                    else if (params.ACTION == 'destroy') {
+
+                        input message: "Confirm DESTROY for ${params.ENV}?"
 
                         sh """
-                        terraform destroy -auto-approve -var-file="${params.ENV}.tfvars" -no-color
+                        terraform destroy \
+                        -auto-approve \
+                        -input=false \
+                        -var-file="${params.ENV}.tfvars"
                         """
                     }
                 }
@@ -120,11 +145,13 @@ pipeline {
 
     post {
         success {
-            echo " SUCCESS: ${params.ACTION} completed for ${params.ENV}"
+            echo "SUCCESS: ${params.ACTION} completed for ${params.ENV}"
         }
+
         failure {
-            echo " FAILED: ${params.ACTION} failed for ${params.ENV}"
+            echo "FAILED: ${params.ACTION} failed for ${params.ENV}"
         }
+
         always {
             echo "Pipeline execution completed."
         }
